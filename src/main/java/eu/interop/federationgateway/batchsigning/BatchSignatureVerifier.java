@@ -26,6 +26,8 @@ import eu.interop.federationgateway.service.CertificateService;
 import eu.interop.federationgateway.utils.CertificateUtils;
 import eu.interop.federationgateway.utils.EfgsMdc;
 import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Optional;
@@ -66,6 +68,19 @@ public class BatchSignatureVerifier {
    * @return true if the batch signature is correct. False otherwise.
    */
   public String checkBatchSignature(final DiagnosisKeyBatch batch, final String base64BatchSignature) {
+    return checkBatchSignature(batch, base64BatchSignature,null);
+  }
+  
+  /**
+   * Verifies the signature of a batch. The signature is an PKCS#7 object encoded with base64.
+   *
+   * @param batch                the {@link DiagnosisKeyBatch} object that corresponds to the batch signature.
+   * @param base64BatchSignature the base64-encoded batch signature to be verified.
+   * @param expectedCertificate  a certificate which is expected in the signature
+   * @return true if the batch signature is correct. False otherwise.
+   */
+  public String checkBatchSignature(final DiagnosisKeyBatch batch, final String base64BatchSignature, 
+                                    X509Certificate expectedCertificate) {
     final byte[] batchSignatureBytes = BatchSignatureUtils.b64ToBytes(base64BatchSignature);
     if (batchSignatureBytes.length > 0) {
       try {
@@ -82,6 +97,12 @@ public class BatchSignatureVerifier {
         if (signerCert == null) {
           log.error("no signer certificate");
           return null;
+        }
+
+        if (expectedCertificate != null) {
+          if (!Arrays.equals(expectedCertificate.getSignature(),signerCert.getSignature())) {       
+            return null;
+          }
         }
 
         EfgsMdc.put("certNotBefore", signerCert.getNotBefore());

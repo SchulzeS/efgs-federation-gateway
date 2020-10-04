@@ -88,7 +88,9 @@ public class TestData {
   public static final String PAYLOAD_HASH = "13251f41adc9f8723dedf450ba9e1506e851742afdfb0cd39a38cee8d21eccf0";
   public static final byte[] BYTES = new byte[]{14, 15, 11, 14, 12, 15, 15, 16};
   public static final String DN_STRING_DE = "C=DE";
+  public static final String DN_STRING_foreign = "C=FO";
   public static final String AUTH_CERT_COUNTRY = "DE";
+  public static final String AUTH_CERT_COUNTRY_FOREIGN = "FO";
   public static final String CALLBACK_ID_FIRST = "firstCallback";
   public static final String CALLBACK_ID_SECOND = "secondCallback";
   public static final String CALLBACK_URL_EFGS = "https://example.org";
@@ -99,7 +101,10 @@ public class TestData {
   private static final String TEST_BATCH_TAG_NL = "uploaderBatchTag_NL";
   private static final String COMMON_NAME_SIGNING_CERT = "demo";
   public static String AUTH_CERT_HASH;
+  public static String AUTH_CERT_HASH_FOREIGN;
+  public static KeyPair trust_keyPair;
   public static KeyPair keyPair;
+  public static KeyPair keyPair_foreign;
   public static X509Certificate validAuthenticationCertificate;
   public static X509Certificate expiredCertificate;
   public static X509Certificate validCertificate;
@@ -107,6 +112,8 @@ public class TestData {
   public static String validCertificateHash;
   public static X509Certificate notValidYetCertificate;
   public static X509Certificate manipulatedCertificate;
+  public static X509Certificate foreignAuthenticationCertificate;
+  public static X509Certificate foreignSigningnCertificate;
 
   private static String insertSigningCertificate(CertificateRepository certificateRepository, X509Certificate certificate) throws NoSuchAlgorithmException, CertificateEncodingException, IOException, InvalidKeyException, SignatureException {
     String certHash = CertificateUtils.getCertThumbprint(certificate);
@@ -124,8 +131,8 @@ public class TestData {
     jcaPEMWriter.close();
     stringWriter.close();
 
-    Signature signer = Signature.getInstance("SHA256withRSA");
-    signer.initSign(keyPair.getPrivate());
+    Signature signer = Signature.getInstance(trustAnchor.getSigAlgName());
+    signer.initSign(trust_keyPair.getPrivate());
     signer.update(rawData.getBytes());
     byte[] signedData = signer.sign();
     String signature = Base64.getEncoder().encodeToString(signedData);
@@ -148,28 +155,36 @@ public class TestData {
     certInDb.ifPresent(certificateRepository::delete);
 
     certificateRepository.save(certificateEntity);
+
     return certHash;
   }
 
   public static void insertCertificatesForAuthentication(CertificateRepository certificateRepository)
     throws NoSuchAlgorithmException, CertificateException, IOException, OperatorCreationException,
     InvalidKeyException, SignatureException {
-
+    
     createCertificates();
 
     validCertificateHash = insertSigningCertificate(certificateRepository, validCertificate);
     insertSigningCertificate(certificateRepository, expiredCertificate);
     insertSigningCertificate(certificateRepository, notValidYetCertificate);
     insertSigningCertificate(certificateRepository, manipulatedCertificate);
-
+    insertSigningCertificate(certificateRepository, foreignSigningnCertificate);
     manipulateCertificate();
 
     byte[] certHashBytes = MessageDigest.getInstance("SHA-256").digest(validAuthenticationCertificate.getEncoded());
     AUTH_CERT_HASH = new BigInteger(1, certHashBytes).toString(16);
 
+    certHashBytes = MessageDigest.getInstance("SHA-256").digest(foreignAuthenticationCertificate.getEncoded());
+    AUTH_CERT_HASH_FOREIGN = new BigInteger(1, certHashBytes).toString(16);
+
     String certDn = validAuthenticationCertificate.getSubjectDN().toString();
     int countryIndex = certDn.indexOf(("C="));
     String certCountry = certDn.substring(countryIndex + 2, countryIndex + 4);
+
+    String certDnForegin = foreignAuthenticationCertificate.getSubjectDN().toString();
+    int countryIndexForegin = certDnForegin.indexOf(("C="));
+    String certCountryForegin = certDnForegin.substring(countryIndexForegin + 2, countryIndexForegin + 4);
 
     StringWriter stringWriter = new StringWriter();
     JcaPEMWriter jcaPEMWriter = new JcaPEMWriter(stringWriter);
@@ -180,8 +195,17 @@ public class TestData {
     jcaPEMWriter.close();
     stringWriter.close();
 
-    Signature signer = Signature.getInstance("SHA256withRSA");
-    signer.initSign(keyPair.getPrivate());
+    stringWriter = new StringWriter();
+    jcaPEMWriter = new JcaPEMWriter(stringWriter);
+    jcaPEMWriter.writeObject(foreignAuthenticationCertificate);
+    jcaPEMWriter.flush();
+    stringWriter.flush();
+    String rawDataForeign = stringWriter.toString().replace("\r", "");
+    jcaPEMWriter.close();
+    stringWriter.close();
+
+    Signature signer = Signature.getInstance(trustAnchor.getSigAlgName());
+    signer.initSign(trust_keyPair.getPrivate());
     signer.update(rawData.getBytes());
     byte[] signedData = signer.sign();
     String signature = Base64.getEncoder().encodeToString(signedData);
@@ -198,22 +222,45 @@ public class TestData {
       rawData
     );
 
+    signer.update(rawDataForeign.getBytes());
+    signedData = signer.sign();
+    signature = Base64.getEncoder().encodeToString(signedData);
+
+    CertificateEntity foreignAuthCertificateEntity = new CertificateEntity(
+      null,
+      ZonedDateTime.now(ZoneOffset.UTC),
+      AUTH_CERT_HASH_FOREIGN,
+      certCountryForegin,
+      CertificateEntity.CertificateType.AUTHENTICATION,
+      false,
+      null,
+      signature,
+      rawDataForeign
+    );
+
     Optional<CertificateEntity> authCertInDb = certificateRepository.getFirstByThumbprintAndCountryAndType(
       AUTH_CERT_HASH, AUTH_CERT_COUNTRY, CertificateEntity.CertificateType.AUTHENTICATION);
 
     authCertInDb.ifPresent(certificateRepository::delete);
 
     certificateRepository.save(authCertificateEntity);
+
+    Optional<CertificateEntity> foreignauthCertInDb = certificateRepository.getFirstByThumbprintAndCountryAndType(
+      AUTH_CERT_HASH_FOREIGN, AUTH_CERT_COUNTRY_FOREIGN, CertificateEntity.CertificateType.AUTHENTICATION);
+
+    foreignauthCertInDb.ifPresent(certificateRepository::delete);
+
+    certificateRepository.save(foreignAuthCertificateEntity);
   }
 
-  private static X509Certificate generateCertificate(Date validFrom, Date validTo) throws OperatorCreationException,
+  private static X509Certificate generateCertificate(Date validFrom, Date validTo,String authCertCountry,String CN,KeyPair kp ) throws OperatorCreationException,
     CertIOException, CertificateException {
-    X500Name dnName = new X500Name("C=" + TestData.AUTH_CERT_COUNTRY + ", CN=" + COMMON_NAME_SIGNING_CERT);
+    X500Name dnName = new X500Name("C=" + authCertCountry+", CN=" + CN);
     BigInteger certSerial = new BigInteger(Long.toString(System.currentTimeMillis()));
 
-    ContentSigner contentSigner = new JcaContentSignerBuilder(DIGEST_ALGORITHM).build(TestData.keyPair.getPrivate());
+    ContentSigner contentSigner = new JcaContentSignerBuilder(DIGEST_ALGORITHM).build(kp.getPrivate());
     JcaX509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(dnName, certSerial, validFrom, validTo,
-      dnName, TestData.keyPair.getPublic());
+      dnName, kp.getPublic());
 
     BasicConstraints basicConstraints = new BasicConstraints(false);
     certBuilder.addExtension(new ASN1ObjectIdentifier("2.5.29.19"), true, basicConstraints);
@@ -223,43 +270,88 @@ public class TestData {
 
   public static void createCertificates() throws NoSuchAlgorithmException, CertificateException, CertIOException,
     OperatorCreationException {
+    KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+    keyGen.initialize(2048);
     if (TestData.keyPair == null) {
-      KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-      keyGen.initialize(2048);
       TestData.keyPair = keyGen.generateKeyPair();
+    }
+
+    if (TestData.keyPair_foreign == null) {
+      TestData.keyPair_foreign =keyGen.generateKeyPair();
+    }
+
+    if (TestData.trust_keyPair == null) {
+      TestData.trust_keyPair = keyGen.generateKeyPair();
     }
 
     TestData.validCertificate = generateCertificate(
       Date.from(ZonedDateTime.now().minusDays(14).toInstant()),
-      Date.from(ZonedDateTime.now().plusYears(1).toInstant())
+      Date.from(ZonedDateTime.now().plusYears(1).toInstant()),
+      AUTH_CERT_COUNTRY, 
+      COMMON_NAME_SIGNING_CERT, 
+      keyPair
     );
 
     TestData.expiredCertificate = generateCertificate(
       Date.from(ZonedDateTime.now().minusDays(14).toInstant()),
-      Date.from(ZonedDateTime.now().minusDays(1).toInstant())
+      Date.from(ZonedDateTime.now().minusDays(1).toInstant()),
+      AUTH_CERT_COUNTRY, 
+      COMMON_NAME_SIGNING_CERT, 
+      keyPair
     );
 
     TestData.notValidYetCertificate = generateCertificate(
       Date.from(ZonedDateTime.now().plusDays(1).toInstant()),
-      Date.from(ZonedDateTime.now().plusDays(14).toInstant())
+      Date.from(ZonedDateTime.now().plusDays(14).toInstant()),
+      AUTH_CERT_COUNTRY, 
+      COMMON_NAME_SIGNING_CERT, 
+      keyPair
     );
 
     TestData.manipulatedCertificate = generateCertificate(
       Date.from(ZonedDateTime.now().minusDays(14).toInstant()),
-      Date.from(ZonedDateTime.now().plusDays(14).toInstant())
+      Date.from(ZonedDateTime.now().plusDays(14).toInstant()),
+      AUTH_CERT_COUNTRY, 
+      COMMON_NAME_SIGNING_CERT, 
+      keyPair
     );
 
     if (TestData.trustAnchor == null) {
       TestData.trustAnchor = generateCertificate(
         Date.from(ZonedDateTime.now().minusDays(14).toInstant()),
-        Date.from(ZonedDateTime.now().plusYears(1).toInstant())
+        Date.from(ZonedDateTime.now().plusYears(1).toInstant()),
+        AUTH_CERT_COUNTRY, 
+        COMMON_NAME_SIGNING_CERT, 
+        trust_keyPair
       );
     }
 
     if (TestData.validAuthenticationCertificate == null) {
       TestData.validAuthenticationCertificate = generateCertificate(
         Date.from(ZonedDateTime.now().minusDays(14).toInstant()),
-        Date.from(ZonedDateTime.now().plusYears(1).toInstant())
+        Date.from(ZonedDateTime.now().plusYears(1).toInstant()),
+        AUTH_CERT_COUNTRY,
+        COMMON_NAME_SIGNING_CERT, 
+        keyPair
+      );
+    }
+
+    if(TestData.foreignAuthenticationCertificate==null) {
+        TestData.foreignAuthenticationCertificate = generateCertificate(
+          Date.from(ZonedDateTime.now().minusDays(14).toInstant()),
+          Date.from(ZonedDateTime.now().plusYears(1).toInstant()),
+          AUTH_CERT_COUNTRY_FOREIGN, 
+          COMMON_NAME_SIGNING_CERT, 
+          keyPair_foreign
+      );
+    }
+      if(TestData.foreignSigningnCertificate==null) {
+        TestData.foreignSigningnCertificate = generateCertificate(
+          Date.from(ZonedDateTime.now().minusDays(14).toInstant()),
+          Date.from(ZonedDateTime.now().plusYears(1).toInstant()),
+          AUTH_CERT_COUNTRY_FOREIGN, 
+          COMMON_NAME_SIGNING_CERT, 
+          keyPair_foreign
       );
     }
   }

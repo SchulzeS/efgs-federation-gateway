@@ -50,7 +50,7 @@ public class BatchSignatureUtils {
    * @param batch the diagnosis key batch, from which the information to generate the bytes to verify are obtained.
    * @return the bytes that will be used to verify the batch signature.
    */
-  static byte[] generateBytesToVerify(final DiagnosisKeyBatch batch) {
+  public static byte[] generateBytesToVerify(final DiagnosisKeyBatch batch) {
     final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
     sortBatchByKeyData(batch)

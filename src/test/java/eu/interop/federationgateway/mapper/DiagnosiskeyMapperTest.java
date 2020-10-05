@@ -51,8 +51,8 @@ public class DiagnosiskeyMapperTest {
     );
 
     List<DiagnosisKeyEntity> expected = Arrays.asList(
-      TestData.getDiagnosisKeyTestEntityforCreation(),
-      TestData.getDiagnosisKeyTestEntityforCreation()
+      TestData.getDiagnosisKeyTestEntityforCreation(TestData.FIRST_BATCHTAG),
+      TestData.getDiagnosisKeyTestEntityforCreation(TestData.FIRST_BATCHTAG)
     );
 
     Assert.assertEquals(expected, converted);
@@ -61,8 +61,8 @@ public class DiagnosiskeyMapperTest {
   @Test
   public void testMappingFromEntityToProto() {
     List<EfgsProto.DiagnosisKey> converted = mapper.entityToProto(Arrays.asList(
-      TestData.getDiagnosisKeyTestEntityforCreation(),
-      TestData.getDiagnosisKeyTestEntityforCreation()
+      TestData.getDiagnosisKeyTestEntityforCreation("1"),
+      TestData.getDiagnosisKeyTestEntityforCreation("2")
     ));
 
     List<EfgsProto.DiagnosisKey> expected = Arrays.asList(

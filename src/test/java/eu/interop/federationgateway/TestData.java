@@ -313,7 +313,7 @@ public class TestData {
       .build();
   }
 
-  public static DiagnosisKeyEntity getDiagnosisKeyTestEntityforCreation() {
+  public static DiagnosisKeyEntity getDiagnosisKeyTestEntityforCreation(String uploadBatchTag) {
     return new DiagnosisKeyEntity(
       null,
       null,
@@ -330,7 +330,7 @@ public class TestData {
         DAYS_SINCE_ONSET_OF_SYMPTOMS
       ),
       new FormatInformation(1, 0),
-      new UploaderInformation(FIRST_BATCHTAG, "b", "c", "d", "e")
+      new UploaderInformation(uploadBatchTag, "b", "c", "d", "e")
     );
   }
 

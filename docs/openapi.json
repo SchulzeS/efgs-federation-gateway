@@ -226,6 +226,16 @@
               "type": "string"
             },
             "example": "20200731-1"
+          },
+          {
+            "name": "batchIndex",
+            "in": "header",
+            "description": "Optional Index. Downloads just a part of the batch together with the signature.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "1,2,3,4 etc."
           }
         ],
         "responses": {
@@ -243,6 +253,22 @@
               "nextBatchTag": {
                 "description": "Tag of the next available batch of the day. Has the value \"null\" if no further BatchTag exists for requested date",
                 "required": true,
+                "style": "simple",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "nextBatchIndex": {
+                "description": "Next available Index. If null, next batchtag has to be used.",
+                "required": false,
+                "style": "simple",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "batchSignature": {
+                "description": "Batch Signature. Only available with index.",
+                "required": false,
                 "style": "simple",
                 "schema": {
                   "type": "string"

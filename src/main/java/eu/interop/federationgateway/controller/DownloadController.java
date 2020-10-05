@@ -20,6 +20,7 @@
 
 package eu.interop.federationgateway.controller;
 
+import eu.interop.federationgateway.batchsigning.BatchSignatureVerifier;
 import eu.interop.federationgateway.config.EfgsProperties;
 import eu.interop.federationgateway.entity.DiagnosisKeyBatchEntity;
 import eu.interop.federationgateway.entity.DiagnosisKeyEntity;
@@ -69,7 +70,10 @@ public class DownloadController {
 
   private static final String DOWNLOAD_ROUTE = "/download/{date}";
   private static final String BATCHTAG_HEADER = "batchTag";
+  private static final String BATCH_INDEX = "batchIndex";
   private static final String NEXT_BATCHTAG_HEADER = "nextBatchTag";
+  private static final String NEXT_BATCHINDEX = "nextBatchIndex";
+  private static final String BATCH_SIGNATURE = "batchSignature";
   private static final String MDC_PROP_BATCHTAG = "batchTag";
 
   private final EfgsProperties properties;
@@ -101,10 +105,16 @@ public class DownloadController {
         example = "2020-07-31"
       ),
       @Parameter(
-        name = "batchTag",
+        name = BATCHTAG_HEADER,
         in = ParameterIn.HEADER,
         description = "Optional Tag to submit the last received batchTag of the day.",
         example = "20200731-1"
+      ),
+      @Parameter(
+        name = BATCH_INDEX,
+        in = ParameterIn.HEADER,
+        description = "Index of a special batch part. If this attribute is used, batch delivers signature.",
+        example = "0,1,2,3 etc."
       )
     },
     responses = {
@@ -112,7 +122,11 @@ public class DownloadController {
         @Header(name = BATCHTAG_HEADER, required = true, description = "Tag of the batch."),
         @Header(name = NEXT_BATCHTAG_HEADER, required = true,
           description = "Tag of the next available batch of the day. Has the value \"null\" if no further BatchTag"
-            + " exists for requested date")},
+            + " exists for requested date"),
+        @Header(name = NEXT_BATCHINDEX, required = false,
+            description = "Next available Index. If null, next batchtag has to be used."),
+        @Header(name = BATCH_SIGNATURE, required = false,
+            description = "Batch Signature. Only available with index.")},
         content = @Content(
           mediaType = MediaType.APPLICATION_JSON_VALUE + "+v1.0",
           examples = @ExampleObject("diagnosisKeyBatch")
@@ -132,6 +146,7 @@ public class DownloadController {
   public ResponseEntity<EfgsProto.DiagnosisKeyBatch> downloadDiagnosisKeys(
     @PathVariable("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
     @RequestHeader(name = BATCHTAG_HEADER, required = false) String batchTag,
+    @RequestHeader(name = BATCH_INDEX, required = false) String batchIndex,
     @RequestAttribute(CertificateAuthentificationFilter.REQUEST_PROP_COUNTRY) String downloaderCountry
   ) {
 
@@ -140,7 +155,7 @@ public class DownloadController {
 
     ZonedDateTime thresholdDate = ZonedDateTime.now(ZoneOffset.UTC)
       .minusDays(properties.getDownloadSettings().getMaxAgeInDays());
-
+    
     if (date.isBefore(thresholdDate.toLocalDate())) {
       log.info("Requested date is too old");
       throw new ResponseStatusException(HttpStatus.GONE, "Requested date is too old!");
@@ -170,25 +185,91 @@ public class DownloadController {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Given date does not match the requested batch");
     }
 
-    List<DiagnosisKeyEntity> entities =
-      diagnosisKeyService.getDiagnosisKeysBatchForCountry(batchTag, downloaderCountry);
-
-    EfgsProto.DiagnosisKeyBatch protoBatch = EfgsProto.DiagnosisKeyBatch.newBuilder()
-      .addAllKeys(diagnosisKeyMapper.entityToProto(entities))
-      .build();
-
     String nextBatchTag = "null";
     if (batchEntity.get().getBatchLink() != null) {
       nextBatchTag = batchEntity.get().getBatchLink();
     }
 
-    log.info("Successful Batch Download");
+    if (batchIndex == null) {
+      List<DiagnosisKeyEntity> entities =
+        diagnosisKeyService.getDiagnosisKeysBatchForCountry(batchTag, downloaderCountry);
 
-    return ResponseEntity
-      .ok()
-      .header(BATCHTAG_HEADER, batchTag)
-      .header(NEXT_BATCHTAG_HEADER, nextBatchTag)
-      .body(protoBatch);
+      EfgsProto.DiagnosisKeyBatch protoBatch = EfgsProto.DiagnosisKeyBatch.newBuilder()
+        .addAllKeys(diagnosisKeyMapper.entityToProto(entities))
+        .build();
+
+      log.info("Successful Batch Download");
+
+      return ResponseEntity
+        .ok()
+        .header(BATCHTAG_HEADER, batchTag)
+        .header(NEXT_BATCHTAG_HEADER, nextBatchTag)
+        .body(protoBatch);
+    } else {
+      int index = 0;
+      if (batchIndex != null) {
+        try {
+          index = Integer.parseInt(batchIndex);
+        } catch (NumberFormatException e) {
+          throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "batchIndex not in a proper format.");
+        }
+      }
+
+      List<String> uploaderBatchtags = diagnosisKeyService.getUploaderBatchTags(batchTag, downloaderCountry);
+
+      String uploaderBatchTag = null;
+
+      if (uploaderBatchtags.size() > index) {
+        uploaderBatchTag = uploaderBatchtags.get(index);
+
+        List<DiagnosisKeyEntity> entities =
+            diagnosisKeyService.getDiagnosisKeysBatchForCountryAndUploaderBatchTag(batchTag, downloaderCountry,
+                                                                                              uploaderBatchTag);
+
+        String signature = entities.get(0).getUploader().getBatchSignature();
+
+        EfgsProto.DiagnosisKeyBatch protoBatch = EfgsProto.DiagnosisKeyBatch.newBuilder()
+            .addAllKeys(diagnosisKeyMapper.entityToProto(entities))
+            .build();
+
+        log.info("Successful Batch Download");
+
+        int nextIndex = index + 1;
+
+        if (uploaderBatchtags.size() > nextIndex) {
+          return ResponseEntity
+            .ok()
+            .header(BATCHTAG_HEADER, batchTag)
+            .header(NEXT_BATCHTAG_HEADER, batchTag)
+            .header(NEXT_BATCHINDEX, String.valueOf(nextIndex))
+            .header(BATCH_SIGNATURE, signature)
+            .body(protoBatch);   
+        } else {
+          return ResponseEntity
+            .ok()
+            .header(BATCHTAG_HEADER, batchTag)
+            .header(NEXT_BATCHTAG_HEADER, nextBatchTag)
+            .header(NEXT_BATCHINDEX, "null")
+            .header(BATCH_SIGNATURE, signature)
+            .body(protoBatch);   
+        }
+      } else {
+        if (nextBatchTag == "null") {
+          return ResponseEntity
+          .ok()
+          .header(BATCHTAG_HEADER, batchTag)
+          .header(NEXT_BATCHTAG_HEADER, nextBatchTag)
+          .header(NEXT_BATCHTAG_HEADER, "null")
+          .body(EfgsProto.DiagnosisKeyBatch.newBuilder().build()); 
+        } else {
+          return ResponseEntity
+          .ok()
+          .header(BATCHTAG_HEADER, batchTag)
+          .header(NEXT_BATCHTAG_HEADER, nextBatchTag)
+          .header(NEXT_BATCHINDEX, "0")
+          .body(EfgsProto.DiagnosisKeyBatch.newBuilder().build());   
+        }
+      }
+    }
   }
-
 }

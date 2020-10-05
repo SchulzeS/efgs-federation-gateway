@@ -32,7 +32,7 @@ public class DbEncryptionTest {
 
   @Test
   public void testThatDiagnosisKeyDataIsStoredEncrypted() {
-    DiagnosisKeyEntity entity = TestData.getDiagnosisKeyTestEntityforCreation();
+    DiagnosisKeyEntity entity = TestData.getDiagnosisKeyTestEntityforCreation("1");
     entity.setCreatedAt(ZonedDateTime.now());
     entity = diagnosisKeyEntityRepository.save(entity);
 
@@ -56,7 +56,7 @@ public class DbEncryptionTest {
 
   @Test
   public void testThatDiagnosisKeyDataIsDecryptedAfterStoring() {
-    DiagnosisKeyEntity entity = TestData.getDiagnosisKeyTestEntityforCreation();
+    DiagnosisKeyEntity entity = TestData.getDiagnosisKeyTestEntityforCreation("1");
     entity.setCreatedAt(ZonedDateTime.now());
 
     DiagnosisKeyEntity savedEntity = diagnosisKeyEntityRepository.save(entity);

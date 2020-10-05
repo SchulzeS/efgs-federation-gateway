@@ -155,6 +155,29 @@ public class DiagnosisKeyEntityService {
     return diagnosisKeyEntityRepository.findByBatchTagIsAndUploader_CountryIsNot(batchTag, country);
   }
 
+  public List<DiagnosisKeyEntity> getDiagnosisKeysBatchForCountryAndUploaderBatchTag(String batchTag, 
+                                                                                     String country, 
+                                                                                     String uploaderBatchTag) {
+    return diagnosisKeyEntityRepository
+              .findByBatchTagIsAndUploader_CountryIsNotAndUploader_BatchTagIs(batchTag, country, uploaderBatchTag);
+  }
+
+  /**
+   * Gets all uploader batchtags of one batchtag.
+   *
+   * @param batchTag Name of the download batch
+   * @param country  Country which is downloading.
+   * @return List of uploader batchtags.
+   */
+  public List<String> getUploaderBatchTags(String batchTag, String country) {
+    try {
+      return diagnosisKeyEntityRepository.findUploaderBatchTags(batchTag, country);
+    } catch (Exception e) {
+      log.info(e.getMessage());
+    }
+    return null;
+  }
+
   public static class DiagnosisKeyInsertException extends Exception {
     @Getter
     private final HashMap<Integer, List<Integer>> resultMap;

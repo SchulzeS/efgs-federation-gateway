@@ -45,9 +45,9 @@ public class DiagnosisKeyEntityRepositoryTest {
   public void setup() {
     repository.deleteAll();
 
-    DiagnosisKeyEntity e1 = TestData.getDiagnosisKeyTestEntityforCreation();
-    DiagnosisKeyEntity e2 = TestData.getDiagnosisKeyTestEntityforCreation();
-    DiagnosisKeyEntity e3 = TestData.getDiagnosisKeyTestEntityforCreation();
+    DiagnosisKeyEntity e1 = TestData.getDiagnosisKeyTestEntityforCreation("1");
+    DiagnosisKeyEntity e2 = TestData.getDiagnosisKeyTestEntityforCreation("2");
+    DiagnosisKeyEntity e3 = TestData.getDiagnosisKeyTestEntityforCreation("3");
 
     e1.setPayloadHash("a");
     e2.setPayloadHash("b");
@@ -106,8 +106,8 @@ public class DiagnosisKeyEntityRepositoryTest {
 
   @Test
   public void testFindFirstByBatchTagIsNull() {
-    DiagnosisKeyEntity e1 = TestData.getDiagnosisKeyTestEntityforCreation();
-    DiagnosisKeyEntity e2 = TestData.getDiagnosisKeyTestEntityforCreation();
+    DiagnosisKeyEntity e1 = TestData.getDiagnosisKeyTestEntityforCreation("1");
+    DiagnosisKeyEntity e2 = TestData.getDiagnosisKeyTestEntityforCreation("2");
 
     e1.setPayloadHash("x");
     e2.setPayloadHash("y");

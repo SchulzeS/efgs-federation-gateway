@@ -197,9 +197,9 @@ public class DownloadControllerTest {
 
     diagnosisKeyBatchRepository.save(new DiagnosisKeyBatchEntity(null, timestampBatchTag, batchTag, null));
 
-    saveDiagnosisEntityToDb(batchTag, origin1);
-    saveDiagnosisEntityToDb(batchTag, origin2);
-    saveDiagnosisEntityToDb(batchTag, origin3);
+    saveDiagnosisEntityToDb(batchTag, origin1,"1");
+    saveDiagnosisEntityToDb(batchTag, origin2,"2");
+    saveDiagnosisEntityToDb(batchTag, origin3,"3");
 
     mockMvc.perform(get("/diagnosiskeys/download/" + getDateString(timestampBatchTag))
       .accept("application/protobuf; version=1.0")
@@ -233,10 +233,10 @@ public class DownloadControllerTest {
     diagnosisKeyBatchRepository.save(new DiagnosisKeyBatchEntity(null, timestampBatchTag, batchTag, batchTag2));
     diagnosisKeyBatchRepository.save(new DiagnosisKeyBatchEntity(null, timestampBatchTag2, batchTag2, null));
 
-    saveDiagnosisEntityToDb(batchTag, origin1);
-    saveDiagnosisEntityToDb(batchTag, origin2);
-    saveDiagnosisEntityToDb(batchTag2, origin3);
-    saveDiagnosisEntityToDb(batchTag2, origin4);
+    saveDiagnosisEntityToDb(batchTag, origin1,"1");
+    saveDiagnosisEntityToDb(batchTag, origin2,"2");
+    saveDiagnosisEntityToDb(batchTag2, origin3,"3");
+    saveDiagnosisEntityToDb(batchTag2, origin4,"4");
 
     mockMvc.perform(get("/diagnosiskeys/download/" + getDateString(timestampBatchTag))
       .accept("application/protobuf; version=1.0")
@@ -275,12 +275,12 @@ public class DownloadControllerTest {
     diagnosisKeyBatchRepository.save(new DiagnosisKeyBatchEntity(null, timestampBatchTag2, batchTag2, batchTag3));
     diagnosisKeyBatchRepository.save(new DiagnosisKeyBatchEntity(null, timestampBatchTag3, batchTag3, null));
 
-    saveDiagnosisEntityToDb(batchTag, origin1);
-    saveDiagnosisEntityToDb(batchTag, origin2);
-    saveDiagnosisEntityToDb(batchTag2, origin3);
-    saveDiagnosisEntityToDb(batchTag2, origin4);
-    saveDiagnosisEntityToDb(batchTag3, origin5);
-    saveDiagnosisEntityToDb(batchTag3, origin6);
+    saveDiagnosisEntityToDb(batchTag, origin1,"1");
+    saveDiagnosisEntityToDb(batchTag, origin2,"2");
+    saveDiagnosisEntityToDb(batchTag2, origin3,"3");
+    saveDiagnosisEntityToDb(batchTag2, origin4,"4");
+    saveDiagnosisEntityToDb(batchTag3, origin5,"5");
+    saveDiagnosisEntityToDb(batchTag3, origin6,"6");
 
     mockMvc.perform(get("/diagnosiskeys/download/" + getDateString(timestampBatchTag2))
       .accept("application/protobuf; version=1.0")
@@ -313,10 +313,10 @@ public class DownloadControllerTest {
     String batchTag = getDateString(timestampBatchTag) + "-1";
     diagnosisKeyBatchRepository.save(new DiagnosisKeyBatchEntity(null, timestampBatchTag, batchTag, null));
 
-    saveDiagnosisEntityToDb(batchTag, origin1, ownCountry);
-    saveDiagnosisEntityToDb(batchTag, origin2, ownCountry);
-    saveDiagnosisEntityToDb(batchTag, origin3, otherCountry);
-    saveDiagnosisEntityToDb(batchTag, origin4, otherCountry);
+    saveDiagnosisEntityToDb(batchTag, origin1, ownCountry,"1");
+    saveDiagnosisEntityToDb(batchTag, origin2, ownCountry,"2");
+    saveDiagnosisEntityToDb(batchTag, origin3, otherCountry,"3");
+    saveDiagnosisEntityToDb(batchTag, origin4, otherCountry,"4");
 
     mockMvc.perform(get("/diagnosiskeys/download/" + getDateString(timestampBatchTag))
       .accept("application/protobuf; version=1.0")
@@ -344,8 +344,8 @@ public class DownloadControllerTest {
 
     diagnosisKeyBatchRepository.save(new DiagnosisKeyBatchEntity(null, timestampBatchTag, batchTag, null));
 
-    saveDiagnosisEntityToDb(batchTag, origin1);
-    saveDiagnosisEntityToDb(batchTag, origin2);
+    saveDiagnosisEntityToDb(batchTag, origin1,TestData.FIRST_BATCHTAG);
+    saveDiagnosisEntityToDb(batchTag, origin2,TestData.SECOND_BATCHTAG);
 
     mockMvc.perform(get("/diagnosiskeys/download/" + getDateString(timestampBatchTag))
       .accept("application/json; version=1.0")
@@ -376,12 +376,160 @@ public class DownloadControllerTest {
       });
   }
 
-  private void saveDiagnosisEntityToDb(String batchTag, String origin) {
-    saveDiagnosisEntityToDb(batchTag, origin, null);
+  @Test
+  public void testRequestShouldNotReturnBatchSignatureWithoutIndex() throws Exception {
+    ZonedDateTime timestamp = ZonedDateTime.now(ZoneOffset.UTC).minusDays(2);
+    ZonedDateTime timestamp2 = ZonedDateTime.now(ZoneOffset.UTC).minusDays(2).plusHours(1);
+    String batchTag1 = getDateString(timestamp) + "-14";
+    String batchTag2 = getDateString(timestamp) + "-15";
+
+    diagnosisKeyBatchRepository.save(new DiagnosisKeyBatchEntity(null, timestamp, batchTag1, batchTag2));
+    diagnosisKeyBatchRepository.save(new DiagnosisKeyBatchEntity(null, timestamp2, batchTag2, null));
+
+    mockMvc.perform(get("/diagnosiskeys/download/" + getDateString(timestamp))
+      .accept("application/protobuf; version=1.0")
+      .header("batchTag", batchTag1)
+      .header(properties.getCertAuth().getHeaderFields().getThumbprint(), TestData.AUTH_CERT_HASH)
+      .header(properties.getCertAuth().getHeaderFields().getDistinguishedName(), TestData.DN_STRING_DE)
+    )
+      .andExpect(status().isOk())
+      .andExpect(content().contentType("application/protobuf; version=1.0"))
+      .andExpect(header().string("batchTag", batchTag1))
+      .andExpect(header().string("nextBatchTag", batchTag2))
+      .andExpect(header().doesNotExist("nextBatchIndex"))
+      .andExpect(header().doesNotExist("batchSignature"));
   }
 
-  private void saveDiagnosisEntityToDb(String batchTag, String origin, String country) {
-    DiagnosisKeyEntity entity = TestData.getDiagnosisKeyTestEntityforCreation();
+  @Test
+  public void testDownloadSubBatch() throws Exception {
+    String origin1 = "o1";
+    String origin2 = "o2";
+    String origin3 = "o3";
+    String origin4 = "o4";
+    String ownCountry = "DE";
+    ZonedDateTime timestampBatchTag = ZonedDateTime.now(ZoneOffset.UTC).minusDays(2);
+    String batchTag = getDateString(timestampBatchTag) + "-1";
+    diagnosisKeyBatchRepository.save(new DiagnosisKeyBatchEntity(null, timestampBatchTag, batchTag, null));
+
+    saveDiagnosisEntityToDb(batchTag, origin1, ownCountry,"1");
+    saveDiagnosisEntityToDb(batchTag, origin2, ownCountry,"1");
+    saveDiagnosisEntityToDb(batchTag, origin3, "DK","2");
+    saveDiagnosisEntityToDb(batchTag, origin4, "NL","3");
+
+    mockMvc.perform(get("/diagnosiskeys/download/" + getDateString(timestampBatchTag))
+      .accept("application/protobuf; version=1.0")
+      .header(properties.getCertAuth().getHeaderFields().getThumbprint(), TestData.AUTH_CERT_HASH)
+      .header(properties.getCertAuth().getHeaderFields().getDistinguishedName(), TestData.DN_STRING_DE)
+      .header("batchIndex", "0")
+    )
+      .andExpect(status().isOk())
+      .andExpect(content().contentType("application/protobuf; version=1.0"))
+      .andExpect(mvcResult -> {
+        EfgsProto.DiagnosisKeyBatch response = EfgsProto.DiagnosisKeyBatch.parseFrom(
+          mvcResult.getResponse().getContentAsByteArray());
+        Assert.assertEquals(origin3, response.getKeys(0).getOrigin());
+        Assert.assertEquals(mvcResult.getResponse().getHeader("nextBatchTag"),batchTag);
+        Assert.assertEquals(mvcResult.getResponse().getHeader("nextBatchIndex"),"1");
+        Assert.assertEquals(mvcResult.getResponse().getHeader("batchSignature"),"b");
+      });
+
+     mockMvc.perform(get("/diagnosiskeys/download/" + getDateString(timestampBatchTag))
+      .accept("application/protobuf; version=1.0")
+      .header(properties.getCertAuth().getHeaderFields().getThumbprint(), TestData.AUTH_CERT_HASH)
+      .header(properties.getCertAuth().getHeaderFields().getDistinguishedName(), TestData.DN_STRING_DE)
+      .header("batchIndex", "1")
+    )
+      .andExpect(status().isOk())
+      .andExpect(content().contentType("application/protobuf; version=1.0"))
+      .andExpect(mvcResult -> {
+        EfgsProto.DiagnosisKeyBatch response = EfgsProto.DiagnosisKeyBatch.parseFrom(
+          mvcResult.getResponse().getContentAsByteArray());
+        Assert.assertEquals(origin4, response.getKeys(0).getOrigin());
+        Assert.assertEquals(mvcResult.getResponse().getHeader("nextBatchIndex"),"null");
+        Assert.assertEquals(mvcResult.getResponse().getHeader("nextBatchTag"),"null");
+        Assert.assertEquals(mvcResult.getResponse().getHeader("batchSignature"),"b");
+      });
+  }
+
+  @Test
+  public void testDownloadSubBatchWithBatchTagJump() throws Exception {
+    String origin1 = "o1";
+    String origin2 = "o2";
+    String origin3 = "o3";
+    String origin4 = "o4";
+    String origin5 = "o5";
+    String ownCountry = "DE";
+    ZonedDateTime timestampBatchTag = ZonedDateTime.now(ZoneOffset.UTC).minusDays(2);
+    String batchTag = getDateString(timestampBatchTag) + "-1";
+    String batchTag2 = getDateString(timestampBatchTag) + "-2";
+    diagnosisKeyBatchRepository.save(new DiagnosisKeyBatchEntity(null, timestampBatchTag, batchTag, batchTag2));
+
+    saveDiagnosisEntityToDb(batchTag, origin1, ownCountry,"1");
+    saveDiagnosisEntityToDb(batchTag, origin2, ownCountry,"1");
+    saveDiagnosisEntityToDb(batchTag, origin3, "DK","2");
+    saveDiagnosisEntityToDb(batchTag, origin4, "ES","3");
+    saveDiagnosisEntityToDb(batchTag2, origin5, "NL","4");
+
+
+    mockMvc.perform(get("/diagnosiskeys/download/" + getDateString(timestampBatchTag))
+      .accept("application/protobuf; version=1.0")
+      .header(properties.getCertAuth().getHeaderFields().getThumbprint(), TestData.AUTH_CERT_HASH)
+      .header(properties.getCertAuth().getHeaderFields().getDistinguishedName(), TestData.DN_STRING_DE)
+      .header("batchIndex", "0")
+    )
+      .andExpect(status().isOk())
+      .andExpect(content().contentType("application/protobuf; version=1.0"))
+      .andExpect(mvcResult -> {
+        EfgsProto.DiagnosisKeyBatch response = EfgsProto.DiagnosisKeyBatch.parseFrom(
+          mvcResult.getResponse().getContentAsByteArray());
+        Assert.assertEquals(origin3, response.getKeys(0).getOrigin());
+        Assert.assertEquals(mvcResult.getResponse().getHeader("nextBatchTag"),batchTag);
+        Assert.assertEquals(mvcResult.getResponse().getHeader("nextBatchIndex"),"1");
+        Assert.assertEquals(mvcResult.getResponse().getHeader("batchSignature"),"b");
+      });
+
+      mockMvc.perform(get("/diagnosiskeys/download/" + getDateString(timestampBatchTag))
+      .accept("application/protobuf; version=1.0")
+      .header(properties.getCertAuth().getHeaderFields().getThumbprint(), TestData.AUTH_CERT_HASH)
+      .header(properties.getCertAuth().getHeaderFields().getDistinguishedName(), TestData.DN_STRING_DE)
+      .header("batchIndex", "1")
+    )
+      .andExpect(status().isOk())
+      .andExpect(content().contentType("application/protobuf; version=1.0"))
+      .andExpect(mvcResult -> {
+        EfgsProto.DiagnosisKeyBatch response = EfgsProto.DiagnosisKeyBatch.parseFrom(
+          mvcResult.getResponse().getContentAsByteArray());
+        Assert.assertEquals(origin4, response.getKeys(0).getOrigin());
+        Assert.assertEquals(mvcResult.getResponse().getHeader("nextBatchTag"),batchTag2);
+        Assert.assertEquals(mvcResult.getResponse().getHeader("nextBatchIndex"),"null");
+        Assert.assertEquals(mvcResult.getResponse().getHeader("batchSignature"),"b");
+      });
+
+     mockMvc.perform(get("/diagnosiskeys/download/" + getDateString(timestampBatchTag))
+      .accept("application/protobuf; version=1.0")
+      .header(properties.getCertAuth().getHeaderFields().getThumbprint(), TestData.AUTH_CERT_HASH)
+      .header(properties.getCertAuth().getHeaderFields().getDistinguishedName(), TestData.DN_STRING_DE)
+      .header("batchIndex", "11")
+    )
+      .andExpect(status().isOk())
+      .andExpect(content().contentType("application/protobuf; version=1.0"))
+      .andExpect(mvcResult -> {
+        EfgsProto.DiagnosisKeyBatch response = EfgsProto.DiagnosisKeyBatch.parseFrom(
+          mvcResult.getResponse().getContentAsByteArray());
+        Assert.assertEquals(0, response.getKeysCount());
+        Assert.assertEquals(mvcResult.getResponse().getHeader("batchTag"),batchTag);
+        Assert.assertEquals(mvcResult.getResponse().getHeader("nextBatchIndex"),"0");
+        Assert.assertEquals(mvcResult.getResponse().getHeader("nextBatchTag"),batchTag2);
+        Assert.assertEquals(mvcResult.getResponse().getHeader("batchSignature"), null);
+      });
+  }
+
+  private void saveDiagnosisEntityToDb(String batchTag, String origin,String uploadBatchTag) {
+    saveDiagnosisEntityToDb(batchTag, origin, null,uploadBatchTag);
+  }
+
+  private void saveDiagnosisEntityToDb(String batchTag, String origin, String country,String uploadBatchTag) {
+    DiagnosisKeyEntity entity = TestData.getDiagnosisKeyTestEntityforCreation(uploadBatchTag);
     entity.setBatchTag(batchTag);
     entity.setCreatedAt(ZonedDateTime.now(ZoneOffset.UTC));
 

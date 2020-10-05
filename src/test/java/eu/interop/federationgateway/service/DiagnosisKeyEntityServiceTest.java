@@ -68,9 +68,9 @@ public class DiagnosisKeyEntityServiceTest {
 
   @Test
   public void assertThatNewEntitiesAreSavedToDatabaseAndCreatedAtTimestampIsSet() throws DiagnosisKeyEntityService.DiagnosisKeyInsertException {
-    DiagnosisKeyEntity testEntity = TestData.getDiagnosisKeyTestEntityforCreation();
-    DiagnosisKeyEntity testEntity2 = TestData.getDiagnosisKeyTestEntityforCreation();
-    DiagnosisKeyEntity testEntity3 = TestData.getDiagnosisKeyTestEntityforCreation();
+    DiagnosisKeyEntity testEntity = TestData.getDiagnosisKeyTestEntityforCreation("1");
+    DiagnosisKeyEntity testEntity2 = TestData.getDiagnosisKeyTestEntityforCreation("2");
+    DiagnosisKeyEntity testEntity3 = TestData.getDiagnosisKeyTestEntityforCreation("3");
 
     diagnosisKeyEntityService.saveDiagnosisKeyEntities(List.of(testEntity, testEntity2, testEntity3));
 
@@ -82,7 +82,7 @@ public class DiagnosisKeyEntityServiceTest {
 
   @Test
   public void assertThatCreatedAtFieldIsNotChangedWhenAlreadyExists() {
-    DiagnosisKeyEntity testEntity = TestData.getDiagnosisKeyTestEntityforCreation();
+    DiagnosisKeyEntity testEntity = TestData.getDiagnosisKeyTestEntityforCreation("1");
     ZonedDateTime timestamp = ZonedDateTime.now(ZoneOffset.UTC).minusDays(1);
     testEntity.setCreatedAt(timestamp);
 
@@ -99,9 +99,9 @@ public class DiagnosisKeyEntityServiceTest {
     when(diagnosisKeyEntityRepositoryMock.save(any()))
       .thenThrow(new QueryTimeoutException("DB is broken"));
 
-    DiagnosisKeyEntity testEntity = TestData.getDiagnosisKeyTestEntityforCreation();
-    DiagnosisKeyEntity testEntity2 = TestData.getDiagnosisKeyTestEntityforCreation();
-    DiagnosisKeyEntity testEntity3 = TestData.getDiagnosisKeyTestEntityforCreation();
+    DiagnosisKeyEntity testEntity = TestData.getDiagnosisKeyTestEntityforCreation("1");
+    DiagnosisKeyEntity testEntity2 = TestData.getDiagnosisKeyTestEntityforCreation("2");
+    DiagnosisKeyEntity testEntity3 = TestData.getDiagnosisKeyTestEntityforCreation("3");
 
     try {
       diagnosisKeyEntityService.saveDiagnosisKeyEntities(List.of(testEntity, testEntity2, testEntity3));
@@ -124,9 +124,9 @@ public class DiagnosisKeyEntityServiceTest {
       .thenThrow(new DataIntegrityViolationException("test"))
       .thenReturn(null);
 
-    DiagnosisKeyEntity testEntity = TestData.getDiagnosisKeyTestEntityforCreation();
-    DiagnosisKeyEntity testEntity2 = TestData.getDiagnosisKeyTestEntityforCreation();
-    DiagnosisKeyEntity testEntity3 = TestData.getDiagnosisKeyTestEntityforCreation();
+    DiagnosisKeyEntity testEntity = TestData.getDiagnosisKeyTestEntityforCreation("1");
+    DiagnosisKeyEntity testEntity2 = TestData.getDiagnosisKeyTestEntityforCreation("2");
+    DiagnosisKeyEntity testEntity3 = TestData.getDiagnosisKeyTestEntityforCreation("3");
 
     try {
       diagnosisKeyEntityService.saveDiagnosisKeyEntities(List.of(testEntity, testEntity2, testEntity3));
@@ -149,9 +149,9 @@ public class DiagnosisKeyEntityServiceTest {
     when(diagnosisKeyEntityRepositoryMock.save(any()))
       .thenAnswer(new AnswersWithDelay(100, new ReturnsEmptyValues()));
 
-    DiagnosisKeyEntity testEntity = TestData.getDiagnosisKeyTestEntityforCreation();
-    DiagnosisKeyEntity testEntity2 = TestData.getDiagnosisKeyTestEntityforCreation();
-    DiagnosisKeyEntity testEntity3 = TestData.getDiagnosisKeyTestEntityforCreation();
+    DiagnosisKeyEntity testEntity = TestData.getDiagnosisKeyTestEntityforCreation("1");
+    DiagnosisKeyEntity testEntity2 = TestData.getDiagnosisKeyTestEntityforCreation("2");
+    DiagnosisKeyEntity testEntity3 = TestData.getDiagnosisKeyTestEntityforCreation("3");
 
     diagnosisKeyEntityService.saveDiagnosisKeyEntities(List.of(testEntity, testEntity2, testEntity3));
 

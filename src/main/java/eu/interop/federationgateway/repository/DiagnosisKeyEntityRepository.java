@@ -63,7 +63,7 @@ public interface DiagnosisKeyEntityRepository extends JpaRepository<DiagnosisKey
 
   @Query("SELECT uploader.batchTag FROM DiagnosisKeyEntity WHERE batchTag = :batchTag and "
                                                                 + "uploader.country != :country"
-                                                                                             + "order by createdAt")
+                                                                                            + " order by createdAt")
   List<String> findUploaderBatchTags(@Param("batchTag") String batchTag,
                                      @Param("country") String country);
 
